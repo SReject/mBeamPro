@@ -3,11 +3,30 @@
     <head>
         <title>mBeamPro - Authorize</title>
         <link rel="stylesheet" type="text/css" href="./main.css">
-        <script src=""> </script>
     </head>
     <body>
         <div class="container">
-            <h1>mBeamPro - Authorized</h1>
+            <noscript>
+                <h1>mBeamPro - Error<h1>
+                JavaScript must be enabled for this page to work correctly
+            </noscript>
+            <script type="text/javascript">
+            //<![CDATA[
+            (function(){
+                var title = "Error", msg = "Unable to locate the authorization token within the URL";
+                
+                match = /(?:^|#|&)access_token=([^&\?#]+)(?:[?&]|$)/.exec(window.location.hash);
+                if (match) {
+                    title = "Authorized";
+                    msg   = 'Your newly generated OAuth token is:<div class="token">' + match[1] + '</div>';
+                    msg  += 'The client_id is:<div class="token">7b21a74f61dc2f750ee07ca7f30c2d3530faf8700fb5f3fc</div>';
+                }
+                
+                document.write('<h1>mBeamPro - ' + title + '</h1>');
+                document.write(msg);
+            }());
+            //]]>
+            </script>
         </div>
     </body>
 </html>
