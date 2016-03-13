@@ -1,6 +1,6 @@
 on $*:SOCKREAD:/^mBeamPro_\d+_ClientLogon\d+$/:{
 
-  var %Cid, %Error, %Data, %UserAuth, %UserName, %UserId, %UserHost, %GotPass, %GotNick, %GotUser, %Sock
+  var %Cid, %Error, %Data, %AuthToken, %UserName, %UserId, %UserHost, %GotPass, %GotNick, %GotUser, %InCap, %Sock
 
   %Cid = $gettok($sockname, 2, 95)
   tokenize 32 $sock($sockname).mark
@@ -29,10 +29,10 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientLogon\d+$/:{
     %GotPass = $4
     %GotNick = $5
     %GotUser = $6
-    
+
     %InCap = $7
 
-    while ($sock($sockname).mark !== CLOSING && (!%GotPass || !%GotNick || !%GotUser)) {
+    while ($sock($sockname).mark !== CLOSING && (!%GotPass || !%GotNick || !%GotUser || %InCap)) {
 
       ;; Read the next line in the buffer; if there isn't a complete line
       ;; to read exit the loop
@@ -50,38 +50,45 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientLogon\d+$/:{
       ;; Tokenize the trimmed data and process it
       tokenize 32 $v1
 
-      ;; ignore CAP commands
+      ;; Handle CAP LS request
       if ($1- == CAP LS) {
         if (%InCap) {
           sockwrite -n $sockname :m.beam.pro NOTICE * :Cap negociations already started
           sockmark $sockname CLOSING
+          _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Cap list requested after CAP has already started
         }
         else {
           %InCap = $true
-          _mBeamPro.IRCWrite :mirc.beam.pro CAP * LS :multi-prefix userhost-in-names
+          sockwrite -n $sockname :mirc.beam.pro CAP * LS :multi-prefix userhost-in-names
+          _mBeamPro.Debug -i IRC CLIENT( $+ %Cid $+ )~Cap list requested; responding with :multi-prefix userhost-in-names
         }
       }
-      
-      ;; Cap negociations not started; should not be getting CAP requests
+
+      ;; Cap negociations not started, as such the client should be be
+      ;; making CAP requests
       elseif ($1 == CAP && !%InCap) {
         sockwrite -n $sockname :m.beam.pro NOTICE * :Not in CAP negociations
         sockmark $sockname CLOSING
+        _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Cap command specified while not in negociates
       }
-      
-      ;; Acknowledge all cap modules
-      elseif ($1-2 == CAP ACK) {
-        _mBeamPro.IRCWrite CAP * ACK $3-
+
+      ;; If the client requests certain modules, ack the request
+      elseif ($1-2 == CAP REQ) {
+        sockwrite -n $sockname :m.beam.pro CAP * ACK $3-
+        _mBeamPro.Debug -i IRC CLIENT( $+ %Cid $+ )~Cap ACK recieved; acknowledging: $3-
       }
-      
+
       ;; End cap negociations
       elseif ($1-2 == CAP END) {
         %InCap = $false
+        _mBeamPro.Debug -i IRC CLIENT( $+ %Cid $+ )~CAP negociates done( %GotPass %GotNick %GotUser )
       }
-      
-      ;; Unknown cap command specified
+
+      ;; If any other CAP request is made, raise an error
       elseif ($1 == CAP) {
         sockwrite -n $sockname :m.beam.pro NOTICE * :Unknown CAP command
         sockmark $sockname CLOSING
+        _mBeamPro.Debug -i IRC CLIENT( $+ %Cid $+ )~Unknown CAP command received
       }
 
       ;; Close the connection at the request of the client
@@ -168,7 +175,7 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientLogon\d+$/:{
 
         ;; If the specified userid does not match the stored userid close
         ;; the connection
-        elseif (!$regex($2-, /^\S+ . . :(\d+)$/i) || $regml(userid, 1) !== %UserId) {
+        elseif (!$regex(userid, $2-, /^\S+ . . :(\d+)$/i) || $regml(userid, 1) !== %UserId) {
           _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent an invalid userid; closing connection.
           sockwrite -n $sockname :m.beam.pro NOTICE * :Invalid userid
           sockmark $sockname CLOSING
@@ -177,7 +184,7 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientLogon\d+$/:{
         ;; Update status variable to indicate a valid userid has been
         ;; received
         else {
-          %GotNick = $true
+          %GotUser = $true
         }
       }
 
@@ -210,7 +217,7 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientLogon\d+$/:{
 
       ;; Cleanup all connections spawned for an authorized client on the
       ;; current connection id
-      _mBeamPro.Cleanup -L %Cid
+      _mBeamPro.Cleanup -A %Cid
 
       ;; Close the IRC client listener for safety; I am unsure of this
       ;; and may remove it if it causes issues such as client
@@ -235,7 +242,7 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientLogon\d+$/:{
       _mBeamPro.IRCWrite %Sock :mirc.beam.pro 004 %UserName mirc.beam.pro $mBeamProVersion i nt qaohvb
       _mBeamPro.IRCWrite %Sock :mirc.beam.pro 005 %UserName UHNAMES NAMESX NETWORK=beam.pro CHANMODES=b,,nt PREFIX=(qaohv)~&@%+ CHANTYPES=# :Are supported on this network
       _mBeamPro.IRCWrite %Sock :mirc.beam.pro NOTICE %UserName :Attempting to join your stream's chat
-      
+
       ;; Attempt to connect to the user's chat for purposes of sending whispers
       if (S_OK == $_mBeamPro.WebSocket($+(mBeamPro_, %Cid, _, %Username), %Username, %AuthToken)) {
         hadd $sockname $+(CHAT_STATUS_#, %Username) JOINING WEB_SOCK_CONNECTING
@@ -266,7 +273,7 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientLogon\d+$/:{
   }
 }
 
-on *:SOCKWRITE:/^mBeamPro_\d+_ClientLogon\d+$/:{
+on $*:SOCKWRITE:/^mBeamPro_\d+_ClientLogon\d+$/:{
   var %Cid, %Error
 
   %Cid = $gettok($sockname, 2, 95)
@@ -277,7 +284,7 @@ on *:SOCKWRITE:/^mBeamPro_\d+_ClientLogon\d+$/:{
     _mBeamPro.Cleanup -a %Cid
     %Error = STATUS_CLOSED No matching connection id for client
   }
-  elseif ($1- !== CLOSING && $0 !== 6) {
+  elseif ($1- !== CLOSING && $0 !== 7) {
     %Error = INTERNAL_ERROR Login information lost
   }
 
@@ -300,7 +307,7 @@ on *:SOCKWRITE:/^mBeamPro_\d+_ClientLogon\d+$/:{
   }
 }
 
-on *:SOCKCLOSE:/^mBeamPro_\d+_ClientLogon\d+$/:{
+on $*:SOCKCLOSE:/^mBeamPro_\d+_ClientLogon\d+$/:{
   var %Cid = $gettok($sockname, 2, 95), %Error
 
   if (!$scid(%Cid).cid) {

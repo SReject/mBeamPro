@@ -112,8 +112,8 @@ alias -l _mBeamPro.Debug {
   ;; Output message to debug window
   echo @mBeamProDebug $+($chr(3), %color, [, %Prefix, ], $chr(15)) %Msg
 }
-#_mBeamPro_Debug end
-alias -l _mBeamPro_Debug
+#_mBeamPro.Debug end
+alias -l _mBeamPro.Debug
 
 ;; Debug window menu
 menu @mBeamProDebug {

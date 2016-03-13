@@ -37,7 +37,7 @@ on $*:SOCKLISTEN:/^mBeamPro_\d+_IRCListen$/:{
     else {
 
       ;; rename the socket away from the temporary name
-      %Sock = $_mBeamPro.GetLogonSock (%Cid)
+      %Sock = $_mBeamPro.GetLogonSock(%Cid)
       sockrename $+(mBeamPro_, %Cid, _Tmp) %Sock
 
       ;; Store default state information, including login creditentials

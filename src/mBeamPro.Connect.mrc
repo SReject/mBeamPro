@@ -97,7 +97,7 @@ alias mBeamPro {
 
         ;; Create listener socket if need be
         if (!$Sock(%Sock)) {
-          socklisten -p 127.0.0.1 %Sock %Port
+          socklisten -d 127.0.0.1 %Sock %Port
           _mBeamPro.Debug -s IRC~Now listening for local connections on port $2.
         }
 
@@ -163,9 +163,9 @@ alias _mBeamPro.Cleanup {
   }
 
   var %Error, %Switches, %Name
-  
+
   _mBeamPro.Debug -i Calling~/_mbeamPro.Cleanup $1-
-  
+
   if (-* iswm $1) {
     %Switches = $mid($1, 2)
     tokenize 32 $2-
@@ -182,11 +182,11 @@ alias _mBeamPro.Cleanup {
   elseif ($regex(%Switches, /([aAc]).*?([aAc])/)) {
     %Error = Conflicting switches specified: $regml(1) $regml(2)
   }
-  
+
   elseif (%Switches && ($1 !isnum 1- || . isin $1)) {
     %Error = Invalid connection id specified
   }
-  
+
   ;; Cleanup all connections for the specified cid
   elseif (a isincs %Switches) {
     %Name = mBeamPro_ $+ $1 $+ _*
@@ -194,10 +194,10 @@ alias _mBeamPro.Cleanup {
     sockclose %Name
     hfree -w %Name
     $+(.timer, %Name) off
-    
+
     _mBeamPro.Debug -s /mBeamPro.Cleanup~All resources freed for $1 $iif($0 > 1, $+($chr(40), $2-, $chr(41)))
   }
-  
+
   ;; Cleanup all authed connections for the specified cid
   elseif (A isincs %Switches) {
     WebSockClose -fw mBeamPro_ $+ $1 $+ _*
@@ -205,10 +205,10 @@ alias _mBeamPro.Cleanup {
     sockclose %Name
     hfree -w %Name
     $+(.timer, %Name) off
-    
+
     _mBeamPro.Debug -s /mBeamPro.Cleanup~All authorized-client resources freed for $1 $iif($0 > 1, $+($chr(40), $2-, $chr(41)))
   }
-  
+
   ;; Cleanup all client connections for the specified cid
   elseif (c isincs %Switches) {
     WebSockClose -fw mBeamPro_ $+ $1 $+ _*
@@ -216,19 +216,19 @@ alias _mBeamPro.Cleanup {
     sockclose %Name
     hfree -w %Name
     $+(.timer, %Name) off
-    
+
     _mBeamPro.Debug -s /mBeamPro.Cleanup~All client resources freed for $1 $iif($0 > 1, $+($chr(40), $2-, $chr(41)))
   }
-  
+
   ;; cleanup the specified connection
   else {
     sockclose $1
     hfree -w $1
     $+(.timer, %Name, _?*) off
-    
+
     _mBeamPro.Debug -s /mBeamPro.Cleanup~All resources freed for $1 $iif($0 > 1, $+($chr(40), $2-, $chr(41)))
   }
-  
+
   ;; Handle Errors
   :error
   if ($error || %Error) {

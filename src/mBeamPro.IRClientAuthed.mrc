@@ -1,5 +1,5 @@
 alias -l _mBeamPro.IRCWrite {
-  var %Cid = $gettok($sockname, 2, 95), %Error
+  var %Cid = $gettok($1, 2, 95), %Error
 
   ;; Validate the inputs
   if (!$regex(cid, $1, /^mBeamPro_(\d+)_ClientAuthed$/i) || $0 < 2) {
@@ -12,7 +12,7 @@ alias -l _mBeamPro.IRCWrite {
   ;; Add \r\n to the end of the specified data and append it to the send
   ;; buffer the call the send-buffer processing alias
   else {
-    bset -t &mBeamPro_IRCSendBuffer $calc($hget($1, IRC_SENDBUFFER, &mBeamPro_IRCSendBuffer) + 1) $1- $+ $crlf
+    bset -tc &mBeamPro_IRCSendBuffer $calc($hget($1, IRC_SENDBUFFER, &mBeamPro_IRCSendBuffer) + 1) $2- $+ $crlf
     hadd -b $1 IRC_SENDBUFFER &mBeamPro_IRCSendBuffer
     bunset &mBeamPro_IRCSendBuffer
     _mBeamPro.IRCSend $1
@@ -42,7 +42,7 @@ alias -l _mBeamPro.IRCSend {
   }
 
   ;; Check if the connection should be closed
-  elseif (!$hget($sockname, IRC_SENDBUFFER, &mBeamPro_IRCSendBuffer) && $sock($1).sq && $sock($1).mark == CLOSING) {
+  elseif (!$hget($sockname, IRC_SENDBUFFER, &mBeamPro_IRCSendBuffer) && !$sock($1).sq && $sock($1).mark == CLOSING) {
     _mBeamPro.Debug -i2 IRC AUTH SEND( $+ %Cid $+ )~All data sent, closing the connection.
     _mBeamPro.Cleanup -a %Cid
   }
@@ -83,6 +83,20 @@ alias -l _mBeamPro.IRCSend {
   }
 }
 
+;; /_mBeamPro.Ping <sockname>
+alias _mBeamPro.Ping {
+  if ($sock($1)) {
+    _mBeamPro.IRCWrite $1 PING :TimeOutCheck
+    $+(.timer, $1, _PINGTimeout) -o 1 30 _mBeamPro.PingTimeout $1
+  }
+}
+alias -l _mBeamPro.PingTimeout {
+  if ($sock($1)) {
+    sockmark $1 CLOSING
+    sockwrite -n $1 :mirc.beam.pro NOTICE * :Pong not returned; closing connection.
+  }
+}
+
 on $*:SOCKWRITE:/^mBeamPro_\d+_ClientAuthed$/:{
   var %Cid = $gettok($sockname, 2, 95), %Error
 
@@ -101,7 +115,7 @@ on $*:SOCKWRITE:/^mBeamPro_\d+_ClientAuthed$/:{
 
   ;; Attempt to move more data from the scripted write buffer to the
   ;; internal socket's send buffer
-  elseif ($sock($sockname).mark !== CLOSING) {
+  elseif {
     _mBeamPro.IRCSend $sockname
   }
 
@@ -114,7 +128,7 @@ on $*:SOCKWRITE:/^mBeamPro_\d+_ClientAuthed$/:{
 }
 
 on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
-  var %Cid = $gettok($sockname, 2, 95), %Error, %Data
+  var %Cid = $gettok($sockname, 2, 95), %Error, %AuthToken, %UserName, %UserId, %UserHost, %Data
 
   ;; Validate sock state
   if (!$scid(%Cid).cid) {
@@ -142,7 +156,7 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
     %Username = $hget($sockname, BeamPro_Username)
     %UserId = $hget($sockname, BeamPro_UserId)
     %UserHost = $+(%UserName, !u, %UserId, @, %UserName, .user.beam.pro)
-    
+
     ;; Read, line by line, from the sockets read buffer
     while ($sock($sockname).mark !== CLOSING) {
       sockread %Data
@@ -150,14 +164,14 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
         break
       }
 
+      ;; Reset the ping timer
+      $+(.timer, $sockname, _PING) 1 30 _mBeamPro.Ping $sockname
+
       ;; Trim excess whitespace; if no data is left, continue to the next
       ;; line in the buffer
       if (!$regsubex(%Data, /^(?:^\s+)|(?:\s+$)/g, )) {
         continue
       }
-
-      ;; Reset the ping timer
-      $+(.timer, $sockname, _PING) 1 30 _mBeamPro.Ping $sockname
 
       ;; Tokenize the data to make it easier to handle, and output a debug message
       tokenize 32 %Data
@@ -165,7 +179,7 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
 
       ;; PING/PONG handling
       if ($1 === PING) {
-        _mBeamPro.IRCWrite PONG $2-
+        _mBeamPro.IRCWrite $sockname PONG $2-
       }
       elseif ($1 == PONG) {
         $+(.timer, $sockname, _PINGTimeout) off
@@ -173,12 +187,12 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
 
       ;; The client is attempting to re-register
       elseif ($1 == PASS || $1 == NICK || $1 == USER) {
-        _mBeamPro.IRCWrite :mirc.beam.pro 462 %Username :You may not re-register
+        _mBeamPro.IRCWrite $sockname :mirc.beam.pro 462 %Username :You may not re-register
       }
 
       ;; /QUIT
       elseif ($1 == QUIT) {
-        _mBeam.Debug -i2 IRC AUTH READ( $+ %Cid $+ )~Quit recieved; closing connection
+        _mBeamPro.Debug -i2 IRC AUTH READ( $+ %Cid $+ )~Quit recieved; closing connection
         sockmark $sockname CLOSING
         sockpause $sockname
         break
@@ -186,8 +200,8 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
 
       ;; /JOIN
       elseif ($1 == JOIN) {
-        
-      
+
+
       }
 
       ;; /PART
@@ -197,14 +211,14 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
       ;; /PRIVMSG
       elseif ($1 == PRIVMSG) {
       }
-      
+
       ;; /TOPIC
       elseif ($1 == TOPIC) {
       }
 
       ;; Unknown command
       else {
-        _mBeamPro.IRCWrite :mirc.beam.pro 421 %Username :Unknown command: $1-
+        _mBeamPro.IRCWrite $sockname :mirc.beam.pro 421 %Username :Unknown command: $1-
       }
     }
   }
