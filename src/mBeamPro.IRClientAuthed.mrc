@@ -42,7 +42,7 @@ alias -l _mBeamPro.IRCSend {
   }
 
   ;; Check if the connection should be closed
-  elseif (!$hget($sockname, IRC_SENDBUFFER, &mBeamPro_IRCSendBuffer) && !$sock($1).sq && $sock($1).mark == CLOSING) {
+  elseif (!$hget($1, IRC_SENDBUFFER, &mBeamPro_IRCSendBuffer) && !$sock($1).sq && $sock($1).mark == CLOSING) {
     _mBeamPro.Debug -i2 IRC AUTH SEND( $+ %Cid $+ )~All data sent, closing the connection.
     _mBeamPro.Cleanup -a %Cid
   }
@@ -214,6 +214,11 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
 
       ;; /TOPIC
       elseif ($1 == TOPIC) {
+      }
+
+      ;; /USERHOST
+      elseif ($1 == USERHOST && $2- == %Username) {
+        _mBeamPro.IRCWrite $sockname :mirc.beam.pro 302 %UserName $+(:, %Username, =+u, %UserId, @, %Username, .user.beam.pro)
       }
 
       ;; Unknown command

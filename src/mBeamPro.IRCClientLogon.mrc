@@ -239,8 +239,18 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientLogon\d+$/:{
       ;; Send initial messages indicating configuration to the client
       _mBeamPro.IRCWrite %Sock :mirc.beam.pro 001 %UserName :Welcome to beam.pro chat interface for mIRC, %UserName
       _mBeamPro.IRCWrite %Sock :mirc.beam.pro 002 %UserName :Your host is mirc.beam.pro
-      _mBeamPro.IRCWrite %Sock :mirc.beam.pro 004 %UserName mirc.beam.pro $mBeamProVersion i nt qaohvb
-      _mBeamPro.IRCWrite %Sock :mirc.beam.pro 005 %UserName UHNAMES NAMESX NETWORK=beam.pro CHANMODES=b,,nt PREFIX=(qaohv)~&@%+ CHANTYPES=# :Are supported on this network
+      _mBeamPro.IRCWrite %Sock :mirc.beam.pro 004 %UserName mirc.beam.pro $mBeamProVer i nt qaohvb
+      _mBeamPro.IRCWrite %Sock :mirc.beam.pro 005 %UserName UHNAMES NAMESX NETWORK=beam.pro CHANMODES=b,,,nt PREFIX=(qaohv)~&@%+ CHANTYPES=# :Are supported on this network
+
+      _mBeamPro.IRCWrite %Sock :mirc.beam.pro 375 %UserName :- mirc.beam.pro Message of the day -
+      _mBeamPro.IRCWrite %Sock :mirc.beam.pro 372 %UserName :- Welcome to mBeamPro, an mIRC implementation of https://beam.pro stream
+      _mBeamPro.IRCWrite %Sock :mirc.beam.pro 372 %UserName :- chat, developed and maintance by SReject.
+      _mBeamPro.IRCWrite %Sock :mirc.beam.pro 372 %UserName :-
+      _mBeamPro.IRCWrite %Sock :mirc.beam.pro 372 %UserName :- If you encouter bugs or would like to request features, see the readable
+      _mBeamPro.IRCWrite %Sock :mirc.beam.pro 372 %UserName :- source or would simply like to get involved you can do so by visting
+      _mBeamPro.IRCWrite %Sock :mirc.beam.pro 372 %UserName :- https://github.com/SReject/mBeamPro
+      _mBeamPro.IRCWrite %Sock :mirc.beam.pro 376 %UserName :End of MOTD
+
       _mBeamPro.IRCWrite %Sock :mirc.beam.pro NOTICE %UserName :Attempting to join your stream's chat
 
       ;; Attempt to connect to the user's chat for purposes of sending whispers
