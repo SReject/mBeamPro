@@ -1,16 +1,13 @@
-;; mBeamPro_build -abMm[N]
+;; Build_mBeamPro -abMm[N]
 alias Build_mBeamPro {
   if ($isid) {
     return
   }
-
   var %Switches, %Error, %Path, %Inc = 0
-
   if (-* iswm $1) {
     %Switches = $mid($1, 2-)
     tokenize 32 $2-
   }
-
   if ($regex(%Switches, /([^abomM0-3])/)) {
     %Error = Unknown switch specified: $regml(1)
   }
@@ -28,7 +25,6 @@ alias Build_mBeamPro {
   }
   else {
     echo -sg $+($chr(3), 03[, Build>Path, ],$chr(15), :) Deducing file to write to
-
     unset %Build_mBeamPro_*
     %Build_mBeamPro_VersionMajor = 0
     %Build_mBeamPro_VersionMinor = 0000
@@ -73,8 +69,6 @@ alias Build_mBeamPro {
       %Path = %Path $+ -stable
     }
     %Path = %Path $+ .mrc
-
-
     if ($isfile(%Path)) {
       %Error = File in use: %Path
     }
@@ -92,11 +86,9 @@ alias Build_mBeamPro {
       else {
         echo -sg $+($chr(3), 10[, Build>Files, ], $chr(15), :) Added %added source files
         echo -sg $+($chr(3), 03[, Build>Process, ], $chr(15), :) Removing comments and empty lines
-
         var %index = 1, %line, %removed_lines, %removed_bytes
         while (%index <= $line(@BuildmBeamPro, 0)) {
           %line = $line(@BuildmBeamPro, %index)
-
           if ($regex(%line, /^\s*(?:;|$)/)) {
             dline @BuildmBeamPro %index
             inc %removed_lines
@@ -107,11 +99,9 @@ alias Build_mBeamPro {
           }
         }
         echo -sg $+($chr(3), 10[, Build>Process, ], $chr(15), :) Removed %removed_lines unneeded lines ( $+ $bytes(%removed_bytes).suf $+ bytes)
-
         echo -sg $+($chr(3), 03[, Build>Save, ], $chr(15), :) Saving to file: %path
         savebuf @BuildmBeamPro $qt(%path)
         echo -sg $+($chr(3), 10[, Build>Save, ], $chr(15), :) Save successful
-
         echo -sg $+($chr(3), 03[, Build>Version, ], $chr(15), :) Adding version alias
         bset -tc &_build_mBeamProVer 1 alias mBeamProVer
         bset     &_build_mBeamProVer $calc($bvar(&_build_mBeamProVer, 0) +1) 32 123 13 10 32 32
@@ -121,10 +111,8 @@ alias Build_mBeamPro {
         bset     &_build_mBeamProVer $calc($bvar(&_build_mBeamProVer, 0) +1) 13 10 125
         bwrite $qt(%path) -1 -1 &_build_mBeamProVer
         echo -sg $+($chr(3), 03[, Build>Version, ], $chr(15), :) Version alias added
-
         close -@ @BuildmBeamPro
         unset %Build_mBeamPro_Version*
-
         echo -sg $+($chr(3), 12[, Build, ], $chr(15), :) Successfully completed
       }
     }

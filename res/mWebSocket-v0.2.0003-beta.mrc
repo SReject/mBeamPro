@@ -334,16 +334,14 @@ alias WebSockClose {
     }
     else {
       %Index = 1
-      while (%Index <= $sock(0)) {
-        %Sock = $sock(%Index)
-        if (_WebSocket_ $+ $1 iswm %Sock) {
-          if (f isincs %Switches || $hget(%Sock, SOCK_STATE) isnum 1-3) {
-            _WebSocket.Cleanup %Sock
-            continue
-          }
-          elseif ($hget(%Sock, SOCK_STATE) == 4 && !$hget(%Sock, CLOSE_PENDING)) {
-            WebSockWrite -c %Name &_WebSocket_SendCloseMsg
-          }
+      while ($sock(_WebSocket_ $+ $1, %Index)) {
+        %Sock = $v1
+        if (f isincs %Switches || $hget(%Sock, SOCK_STATE) isnum 1-3) {
+          _WebSocket.Cleanup %Sock
+          continue
+        }
+        elseif ($hget(%Sock, SOCK_STATE) == 4 && !$hget(%Sock, CLOSE_PENDING)) {
+          WebSockWrite -c $gettok(%Sock, 2-, 95) &_WebSocket_SendCloseMsg
         }
         inc %Index
       }
@@ -512,9 +510,8 @@ alias WebSockFrame {
     }
   }
   elseif (&?* iswm $1 && $0 == 1 && $chr(32) !isin $1) {
-    %Result = $hget(%Sock, WSFRAME_DATA, &_WebSocket_EventFrameData)
-    bunset &_WebSocket_EventFrameData
-    return %Result
+    bunset $1
+    Return $hget(%Sock, WSFRAME_DATA, $1)
   }
   elseif ($1- == Size) {
     %Result = $hget(%Sock, WSFRAME_DATA, &_WebSocket_EventFrameData)
@@ -1027,5 +1024,5 @@ on $*:SOCKWRITE:/^_WebSocket_(?!\d+$)[^-?*][^?*]*$/:{
   }
 }
 alias mWebSockVer {
-  return 02000.0001
+  return 02000.0003
 }

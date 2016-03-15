@@ -247,6 +247,22 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
 
       ;; /PART
       elseif ($1 == PART) {
+        ;; switch to the connection id
+        scid %Cid
+        ;; check to make sure the 2nd parameter is a channel
+        if (#?* iswm $2) {
+
+          ;; if there's a websocket open for the channel, close it
+          if ($sock(_WebSocket_mBeamPro_ $+ %Cid $+ _Chat $+ $2)) {
+            WebSockClose $gettok($v1, 2-, 95)
+          }
+
+          ;; if the user is currently on the channel, send a PART message
+          ;; to the irc client
+          if ($me ison $2) {
+            _mBeamPro.IRCWrite $sockname : $+ %UserHost PART $2 :Leaving
+          }
+        }
       }
 
       ;; /PRIVMSG
@@ -262,8 +278,15 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
         _mBeamPro.IRCWrite $sockname :mirc.beam.pro 302 %UserName $+(:, %Username, =+u, %UserId, @, %Username, .user.beam.pro)
       }
 
+      ;; /MODE #[channel]
+      elseif ($regex($1-, /^MODE #(\S+)$/i)) {
+        if ($WebSock(mBeamPro_ $+ %Cid $+ _Chat# $+ $regml(1))) {
+          _mBeamPro.IRCWrite $sockname :mirc.beam.pro MODE # $+ $regml(1) +nt
+        }
+      }
+
       ;; Commands to ignore: /MODE user
-      elseif ($1-2 == MODE %UserName) {
+      elseif ($1-2 == MODE %UserName || $1 == PROTOCTL) {
       }
 
       ;; Unknown command

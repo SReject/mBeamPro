@@ -83,10 +83,12 @@ alias -l _mBeamPro.JoinChat {
           JSONClose %JSON
 
           ;; Open Websock
+          _mBeamPro.Debug -i JOIN CHAT( $+ $1 - $2 $+ )~Attempting to connect to %EndPoint
           WebSockOpen %Name %EndPoint
 
           ;; Store required info
-          hadd %Name BeamPro_ChanName $mid($2, 2)
+          %Name = _WebSocket_ $+ %Name
+          hadd %Name BeamPro_ChanName $2
           hadd %Name BeamPro_ChanId   %ChanId
           hadd %Name BeamPro_UserName $hget(%Sock, BeamPro_UserName)
           hadd %Name BeamPro_UserId   $hget(%Sock, BeamPro_UserId)
@@ -112,17 +114,18 @@ alias -l _mBeamPro.WebSockSend {
   if (!$isid) {
     return
   }
-  var %Id = 0, %Ws = $1, %Sock, %Chan, %Id, %Index, %Args
+  var %Id = 0, %Ws = $1, %Sock, %Chan, %Hash, %Id, %Index, %Args
 
-  %Sock = mBeamPro_ $+ $gettok(%WS, 2, 95) $+ _ClientAuthed
+  %Sock = mBeamPro_ $+ $gettok(%Ws, 2, 95) $+ _ClientAuthed
   %Chan = $hget(%Ws, BeamPro_ChanName)
+  %Hash = _WebSocket_ $+ %Ws
 
   ;; If a callback alias has been specified as the prop, get the next id
   ;; to use then store the id and callback alias
   if ($prop) {
-    %Id = $calc($iif($hget(%ws, BeamPro_CallBackId), $v1, 0) +1)
-    hadd %Ws BeamPro_CallBackId %id
-    hadd %Ws BeamPro_Callback $+ %id $prop
+    %Id = $calc($iif($hget(%Hash, BeamPro_CallBackId), $v1, 0) +1)
+    hadd %Hash BeamPro_CallBackId %id
+    hadd %Hash BeamPro_Callback $+ %id $prop
   }
 
   ;; Format the message arguments to be valid json
@@ -133,7 +136,7 @@ alias -l _mBeamPro.WebSockSend {
   }
 
   ;; fill the rest of the message parameters and write it to the websocket
-  WebSockWrite %Ws {"type":"method","method": $+ $qt($2) $+ "id": $+ $_mBeamPro.JSONEncode(%id),"arguments":[ $+ %args $+ ]}
+  WebSockWrite %Ws {"type":"method","method": $+ $qt($2) $+ ,"id": $+ $_mBeamPro.JSONEncode(%id) $+ ,"arguments":[ $+ %args $+ ]}
 }
 
 ;; $_mBeamPro.JSONEncode(input)
@@ -164,16 +167,18 @@ alias -l _mBeamPro.JSONEsc {
 }
 
 alias -l _mBeamPro.OnChatAuth {
-  var %Ws, %ReplyJSON, %Cid, %Chan, %ChanId, %UserName, %UserId, %Sock
+  var %Ws, %ReplyJSON, %Cid, %Hash, %Chan, %ChanId, %UserName, %UserId, %Sock
 
   %Ws        = $1
   %ReplyJSON = $2
   %Cid       = $gettok(%Ws, 2, 95)
-  %Chan      = $hget(%Ws, BeamPro_ChanName)
-  %ChanId    = $hget(%Ws, BeamPro_ChanId)
-  %UserName  = $hget(%Ws, BeamPro_UserName)
-  %UserId    = $hget(%Ws, BeamPro_UserId)
+  %Hash      = _WebSocket_ $+ %Ws
+  %Chan      = $hget(%Hash, BeamPro_ChanName)
+  %ChanId    = $hget(%Hash, BeamPro_ChanId)
+  %UserName  = $hget(%Hash, BeamPro_UserName)
+  %UserId    = $hget(%Hash, BeamPro_UserId)
   %Sock      = mBeamPro_ $+ %Cid $+ _ClientAuthed
+
 
   ;; If no errors, compile and send join data
   if (!$JSON(%ReplyJSON, error)) {
@@ -207,7 +212,7 @@ alias -l _mBeamPro.OnChatAuth {
       bset -t &mBeamPro_JoinMsg $calc($bvar(&mBeamPro_JoinMsg, 0) +1) :mirc.beam.pro 353 %Username = %Chan $+(:,%UserName, !u, %UserId, @, %UserName, .user.beam.pro)
     }
     else {
-      var %BaseMsg, %Names, %Index, %End, %User, %Index2, %End2, %Role, %IsStaff, %IsOwner, %IsSub, %IsMod, %IsMe
+      var %BaseMsg, %Names, %Index, %End, %User, %Index2, %End2, %Role, %IsStaff, %IsOwner, %IsSub, %IsMod
 
       %BaseMsg = :mirc.beam.pro 353 %UserName = %Chan :
       %End     = $JSON(%JSON, length)
@@ -216,9 +221,6 @@ alias -l _mBeamPro.OnChatAuth {
 
         ;; Build userhost
         %User = $JSON(%JSON, %Index, userName)
-        if (%User == %UserName) {
-          %IsMe = $true
-        }
         %User = %User $+ !u $+ $JSON(%JSON, %Index, userId) $+ @ $+ %User $+ .user.beam.pro
 
         ;; Loop over userRoles
@@ -280,15 +282,17 @@ alias -l _mBeamPro.OnChatAuth {
 
 
 on $*:SIGNAL:/^WebSocket_READY_mBeamPro_\d+_Chat#\S+$/:{
-  var %Error, %Ws, %Cid, %Sock, %chan, %ChanId, %UserId, %AuthKey
+  var %Ws, %Cid, %Hash, %Chan, %ChanId, %UserName, %UserId, %OAuth, %AuthKey, %Sock, %Error
 
   %Ws       = $WebSock
   %Cid      = $gettok(%Ws, 2, 95)
-  %Chan     = $hget(%Ws, BeamPro_ChanName)
-  %ChanId   = $hget(%ws, BeamPro_ChanId)
-  %UserName = $hget(%Ws, BeamPro_UserName)
-  %UserId   = $hget(%ws, BeamPro_UserId)
-  %AuthKey  = $hget(%ws, BeamPro_AuthKey)
+  %Hash     = _WebSocket_ $+ %Ws
+  %Chan     = $hget(%Hash, BeamPro_ChanName)
+  %ChanId   = $hget(%Hash, BeamPro_ChanId)
+  %UserName = $hget(%Hash, BeamPro_UserName)
+  %UserId   = $hget(%Hash, BeamPro_UserId)
+  %OAuth    = $hget(%Hash, BeamPro_OAuth)
+  %AuthKey  = $hget(%Hash, BeamPro_AuthKey)
   %Sock     = mBeamPro_ $+ %Cid $+ _ClientAuthed
 
   ;; Validate IRC Connection & Sock state
@@ -296,7 +300,7 @@ on $*:SIGNAL:/^WebSocket_READY_mBeamPro_\d+_Chat#\S+$/:{
     _mBeamPro.Cleanup -a %Cid
     _mBeamPro.Debug -w WEBSOCK READY( $+ %Cid - %Chan $+ )~IRC Connection no longer exists
   }
-  elseif (!$scid(%Cid).status !== connected) {
+  elseif ($scid(%Cid).status !== connected) {
     _mBeamPro.Cleanup -A %Cid
     _mBeamPro.Debug -w WEBSOCK READY( $+ %Cid - %Chan $+ )~IRC Connection not established
   }
@@ -317,6 +321,9 @@ on $*:SIGNAL:/^WebSocket_READY_mBeamPro_\d+_Chat#\S+$/:{
   }
   elseif (!$len(%UserId)) {
     %Error = Websock state lost (Missing User Id)
+  }
+  elseif (!$len(%OAuth)) {
+    %Error = Websock state lost (Missing Chat Auth Key)
   }
   elseif (!$len(%AuthKey)) {
     %Error = Websock state lost (Missing Chat Auth Key)
@@ -341,29 +348,31 @@ on $*:SIGNAL:/^WebSocket_READY_mBeamPro_\d+_Chat#\S+$/:{
 }
 
 on $*:SIGNAL:/^WebSocket_DATA_mBeamPro_\d+_Chat#\S+$/:{
-  var %Ws, %Cid, %Chan, %ChanId, %UserName, %UserId, %Sock, %Host, %Error, %Warn, %UserHost, %JSON, %Id, %Event
+  var %Ws, %Cid, %Hash, %Chan, %ChanId, %UserName, %UserId, %OAuth, %Sock, %Host, %Error, %Warn, %UserHost, %JSON, %Id, %Event
 
   %Ws       = $WebSock
   %Cid      = $gettok(%Ws, 2, 95)
-  %Chan     = $hget(%ws, BeamPro_ChanName)
-  %ChanId   = $hget(%Ws, BeamPro_ChanId)
-  %UserName = $hget(%Ws, BeamPro_UserName)
-  %UserId   = $hget(%Ws, BeamPro_UserId)
+  %Hash     = _WebSocket_ $+ %Ws
+  %Chan     = $hget(%Hash, BeamPro_ChanName)
+  %ChanId   = $hget(%Hash, BeamPro_ChanId)
+  %UserName = $hget(%Hash, BeamPro_UserName)
+  %UserId   = $hget(%Hash, BeamPro_UserId)
+  %OAuth    = $hget(%Hash, BeamPro_OAuth)
   %Sock     = mBeamPro_ $+ %Cid $+ _ClientAuthed
   %Host     = $+(%UserName, !u, %UserId, @, %UserName, .user.beam.pro)
 
   ;; Validate IRC Connection & Sock state
   if (!$scid(%Cid).cid) {
     _mBeamPro.Cleanup -a %Cid
-    _mBeamPro.Debug -w WEBSOCK READY( $+ %Cid - %Chan $+ )~IRC Connection no longer exists
+    _mBeamPro.Debug -w WEBSOCK DATA( $+ %Cid - %Chan $+ )~IRC Connection no longer exists
   }
-  elseif (!$scid(%Cid).status !== connected) {
+  elseif ($scid(%Cid).status !== connected) {
     _mBeamPro.Cleanup -A %Cid
-    _mBeamPro.Debug -w WEBSOCK READY( $+ %Cid - %Chan $+ )~IRC Connection not established
+    _mBeamPro.Debug -w WEBSOCK DATA( $+ %Cid - %Chan $+ )~IRC Connection not established
   }
   elseif (!$sock(%Sock)) {
     _mBeamPro.Cleanup -A %Cid
-    _mBeamPro.Debug -w WEBSOCK READY( $+ %Cid - %Chan $+ )~IRC Connection does not exist
+    _mBeamPro.Debug -w WEBSOCK DATA( $+ %Cid - %Chan $+ )~IRC Connection does not exist
   }
 
   ;; Validate WebSock state
@@ -379,7 +388,7 @@ on $*:SIGNAL:/^WebSocket_DATA_mBeamPro_\d+_Chat#\S+$/:{
   elseif (!$len(%UserId)) {
     %Error = Websock state lost (Missing User Id)
   }
-  elseif (!$len(%AuthKey)) {
+  elseif (!$len(%OAuth)) {
     %Error = Websock state lost (Missing Chat Auth Key)
   }
 
@@ -391,6 +400,9 @@ on $*:SIGNAL:/^WebSocket_DATA_mBeamPro_\d+_Chat#\S+$/:{
   ;; Begin processing the frame be retreiving its data and parsing it as
   ;; JSON
   else {
+    scid %Cid
+  
+    bunset &_mBeamPro_DataFrameJSON
     noop $WebSockFrame(&_mBeamPro_DataFrameJSON)
     %JSON = mBeamPro_DataFrameJSON
     JSONOpen -b %JSON &_mBeamPro_DataFrameJSON
@@ -404,7 +416,7 @@ on $*:SIGNAL:/^WebSocket_DATA_mBeamPro_\d+_Chat#\S+$/:{
     ;; delete the item then execute the callback
     elseif ($JSON(%JSON, type) == reply) {
       %Id = $JSON(%JSON, id)
-      if ($hget(%Ws, BeamPro_CallBack $+ %Id)) {
+      if ($hget(%Hash, BeamPro_CallBack $+ %Id)) {
         hdel %Sock BeamPro_CallBack $+ %Id
         $v1 %Ws %JSON
       }
@@ -426,22 +438,24 @@ on $*:SIGNAL:/^WebSocket_DATA_mBeamPro_\d+_Chat#\S+$/:{
 
         ;; Build userhost string and output join message to IRC client
         %_UserName = $JSON(%JSON, username)
-        %_UserHost = $+(%_UserName, !u, $JSON(%JSON, id), @, %_UserName, .user.beam.pro)
-        _mBeamPro.IRCWrite %Sock : $+ %_UserHost JOIN : $+ %Chan
+        if ($len(%_UserName) && %_UserName !== %UserName) {
+          %_UserHost = $+(%_UserName, !u, $JSON(%JSON, id), @, %_UserName, .user.beam.pro)
+          _mBeamPro.IRCWrite %Sock : $+ %_UserHost JOIN : $+ %Chan
 
-        ;; Loop over the user roles, and build a list of modes to apply to
-        ;; the user, then send the a mode message to the IRC Client
-        %_End = $JSON(%JSON, data, roles, length)
-        while (%_Index < %_End) {
-          %_Role = $JSON(%JSON, data, roles, %_Index)
-          if (%_Role == Founder    && a !isincs %_Modes) { %_Modes = %_Modes $+ a }
-          if (%_Role == Owner      && q !isincs %_Modes) { %_Modes = %_Modes $+ q }
-          if (%_Role == Mod        && o !isincs %_Modes) { %_Modes = %_Modes $+ o }
-          if (%_Role == Subscriber && h !isincs %_Modes) { %_Modes = %_Modes $+ h }
-          inc %_Index
-        }
-        if (%_Modes) {
-          _mBeamPro.IRCWrite %Sock :mirc.beam.pro MODE %Chan + $+ %_Modes $str(%_UserName $+ $chr(32), $len(%_Modes))
+          ;; Loop over the user roles, and build a list of modes to apply to
+          ;; the user, then send the a mode message to the IRC Client
+          %_End = $JSON(%JSON, data, roles, length)
+          while (%_Index < %_End) {
+            %_Role = $JSON(%JSON, data, roles, %_Index)
+            if (%_Role == Founder    && a !isincs %_Modes) { %_Modes = %_Modes $+ a }
+            if (%_Role == Owner      && q !isincs %_Modes) { %_Modes = %_Modes $+ q }
+            if (%_Role == Mod        && o !isincs %_Modes) { %_Modes = %_Modes $+ o }
+            if (%_Role == Subscriber && h !isincs %_Modes) { %_Modes = %_Modes $+ h }
+            inc %_Index
+          }
+          if (%_Modes) {
+            _mBeamPro.IRCWrite %Sock :mirc.beam.pro MODE %Chan + $+ %_Modes $str(%_UserName $+ $chr(32), $len(%_Modes))
+          }
         }
       }
 
@@ -449,8 +463,10 @@ on $*:SIGNAL:/^WebSocket_DATA_mBeamPro_\d+_Chat#\S+$/:{
       ;;   Build userhost string and output part message to IRC Client
       elseif (%Event == UserLeave) {
         %_UserName = $JSON(%JSON, username)
-        %_UserHost = $+(%_UserName, !u, $JSON(%JSON, id), @, %_UserName, .user.beam.pro)
-        _mBeamPro.IRCWrite %Sock : $+ %_UserHost PART %Chan :leaving
+        if ($len(%_UserName)) {
+          %_UserHost = $+(%_UserName, !u, $JSON(%JSON, id), @, %_UserName, .user.beam.pro)
+          _mBeamPro.IRCWrite %Sock : $+ %_UserHost PART %Chan :leaving
+        }
       }
 
       ;; CHAT MESSAGE
@@ -463,43 +479,48 @@ on $*:SIGNAL:/^WebSocket_DATA_mBeamPro_\d+_Chat#\S+$/:{
         ;; Build userhost string
         %_UserName = $JSON(%JSON, data, user_name)
         %_UserHost = $+(%_UserName, !u, $JSON(%JSON, data, user_id), @, %_UserName, .user.beam.pro)
+        if (%_UserName !== %UserName) {
 
-        ;; Determine if the message is an action or whisper
-        %_IsAction  = $JSON(%JSON, data, message, meta, me)
-        %_IsWhisper = $JSON(%JSON, data, message, meta, whisper)
+          ;; Determine if the message is an action or whisper
+          %_IsAction  = $JSON(%JSON, data, message, meta, me)
+          %_IsWhisper = $JSON(%JSON, data, message, meta, whisper)
 
-        ;; Loop over each message fragement and build a full text-based message
-        %_Index = 0
-        %_End = $JSON(%JSON, data, message, message, length)
-        while (%_Index < %_End) {
-          if ($JSON(%JSON, data, message, message, %_Index, type) == text) {
-            %_Msg = %_Msg $+ $JSON(%JSON, data, message, message, %_Index, data)
+          ;; Loop over each message fragement and build a full text-based message
+          %_Index = 0
+          %_End = $JSON(%JSON, data, message, message, length)
+          while (%_Index < %_End) {
+            if ($JSON(%JSON, data, message, message, %_Index, type) == text) {
+              %_Msg = %_Msg $+ $JSON(%JSON, data, message, message, %_Index, data)
+            }
+            elseif ($v1 == emoticon) {
+              %_Msg = %_Msg $+ $JSON(%JSON, data, message, message, %_Index, text)
+            }
+            elseif ($v1 == link) {
+              %_Msg = %_Msg $JSON(%JSON, data, message, message, %_Index, url) $+ $chr(32)
+            }
+            inc %_Index
           }
-          elseif ($v1 == emoticon) {
-            %_Msg = %_Msg $+ $JSON(%JSON, data, message, message, %_Index, text)
-          }
-          inc %_Index
-        }
 
-        ;; replace $cr and $lf with spaces, then trim leading, duplicate and trailing spaces
-        %_Msg = $regsubex($replace(%_Msg, $cr, $chr(32), $lf, $chr(32)), /(?:^\x20*$)|(?:\x20(?=\x20))/g, )
+          ;; Replace $cr and $lf with spaces, then trim leading, duplicate and trailing spaces
+          %_Msg = $regsubex($replace(%_Msg, $cr, $chr(32), $lf, $chr(32)), /(?:^\x20*$)|(?:\x20(?=\x20))/g, )
 
-        ;; if the message isn't empty, send the compiled message to the IRC Client
-        if (%_Msg) {
-          if (%_IsWhisper) {
-            _mBeamPro.IRCWrite %Sock : $+ %_UserHost NOTICE %Chan :(Whisper) %_Msg
-          }
-          elseif (%_IsAction) {
-            _mBeamPro.IRCWrite %Sock : $+ %_UserHost PRIVMSG %Chan : $+ $chr(1) $+ ACTION %_Msg $+ $chr(1)
-          }
-          else {
-            _mBeamPro.IRCWrite %Sock : $+ %_UserHost PRIVMSG %Chan : $+ %_Msg
+          ;; If the message isn't empty, send the compiled message to the IRC Client
+          if (%_Msg) {
+            if (%_IsWhisper) {
+              _mBeamPro.IRCWrite %Sock : $+ %_UserHost NOTICE %Chan :(Whisper) %_Msg
+            }
+            elseif (%_IsAction) {
+              _mBeamPro.IRCWrite %Sock : $+ %_UserHost PRIVMSG %Chan : $+ $chr(1) $+ ACTION %_Msg $+ $chr(1)
+            }
+            else {
+              _mBeamPro.IRCWrite %Sock : $+ %_UserHost PRIVMSG %Chan : $+ %_Msg
+            }
           }
         }
       }
 
       ;; Unknown event
-      else {
+      elseif ($JSON(%JSON, type) !== DeleteMessage) {
         scid %Cid
         echo -s >> Unknown even frame
         echo -s >> $WebSockFrame
@@ -515,9 +536,13 @@ on $*:SIGNAL:/^WebSocket_DATA_mBeamPro_\d+_Chat#\S+$/:{
   if ($error || %Error) {
     %Error = $v1
     reseterror
-    _mBeamPro.Debug -e WEBSOCK READY( $+ %Cid - %Chan $+ )~ $+ %Error
+    _mBeamPro.Debug -e WEBSOCK DATA( $+ %Cid - %Chan $+ )~ $+ %Error
 
     WebSockClose -f %Ws
     _mBeamPro.IRCWrite %Sock :mirc.beam.pro NOTICE * :WebSock failure: %Error
+  }
+  else if (%Warn) {
+    _mBeamPro.Debug -w WEBSOCK DATA( $+ %Cid - %Chan $+ )~ $+ %Warn
+    _mBeamPro.IRCWrite %Sock :mirc.beam.pro NOTICE * :WebSock Warning: %Warn
   }
 }
