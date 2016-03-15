@@ -182,6 +182,7 @@ alias -l _mBeamPro.OnChatAuth {
 
   ;; If no errors, compile and send join data
   if (!$JSON(%ReplyJSON, error)) {
+    var %Topic, %BaseMsg, %Names, %Index, %End, %User, %Index2, %End2, %Role, %IsStaff, %IsOwner, %IsSub, %IsMod
 
     ;; :[Username]!u[userid]@[Username].user.beam.pro JOIN :[chan]
     bset -tc &mBeamPro_JoinMsg 1 $+(:, %UserName, !u, %UserId, @, %UserName, .user.beam.pro JOIN :, %Chan, $crlf)
@@ -212,8 +213,6 @@ alias -l _mBeamPro.OnChatAuth {
       bset -t &mBeamPro_JoinMsg $calc($bvar(&mBeamPro_JoinMsg, 0) +1) :mirc.beam.pro 353 %Username = %Chan $+(:,%UserName, !u, %UserId, @, %UserName, .user.beam.pro)
     }
     else {
-      var %BaseMsg, %Names, %Index, %End, %User, %Index2, %End2, %Role, %IsStaff, %IsOwner, %IsSub, %IsMod
-
       %BaseMsg = :mirc.beam.pro 353 %UserName = %Chan :
       %End     = $JSON(%JSON, length)
       %Index   = 0
