@@ -1,5 +1,11 @@
 alias -l _mBeamPro.IRCWrite {
-  var %Cid = $gettok($1, 2, 95), %Error
+  var %Cid, %Switches, %Error
+
+  if (-* iswm $1) {
+    %Switches = $mid($1, 2)
+    tokenize 32 $2-
+  }
+  %Cid = $gettok($1, 2, 95)
 
   ;; Validate the inputs
   if (!$regex(cid, $1, /^mBeamPro_(\d+)_ClientAuthed$/i) || $0 < 2) {
@@ -7,6 +13,22 @@ alias -l _mBeamPro.IRCWrite {
   }
   elseif (!$sock($1)) {
     %Error = INTERNAL_ERROR Connection no longer exists
+  }
+
+  ;; validate switches
+  elseif ($regex(%Switches, /([^t])/)) {
+    %Error = INTERNAL_ERROR Unknown switch specified: $regml(1)
+  }
+  elseif ($regex(%Switches, /([^t]).*?\1/)) {
+    %Error = INTERNAL_ERROR Duplicate switch specified: $regml(1)
+  }
+
+  ;; Handle specified bvar
+  elseif (t !isincs %Switches && $0 == 2 && &?* iswm $2 && $bvar($2,0)) {
+    bcopy -c &mBeamPro_IRCSendBuffer $calc($hget($1, IRC_SENDBUFFER, &mBeamPro_IRCSendBuffer) +1) $2 1 -1
+    hadd -b $1 IRC_SENDBUFFER &mBeamPro_IRCSendBuffer
+    bunset &mBeamPro_IRCSendBuffer
+    _mBeamPro.IRCSend $1
   }
 
   ;; Add \r\n to the end of the specified data and append it to the send
@@ -97,6 +119,11 @@ alias -l _mBeamPro.PingTimeout {
   }
 }
 
+;; $_mBeamPro.URLEncode
+alias -l _mBeamPro.URLEncode {
+  return $regsubex($1-, /([^a-z\d_\-])/g, % $+ $base( $asc(\t), 10, 16, 2))
+}
+
 on $*:SOCKWRITE:/^mBeamPro_\d+_ClientAuthed$/:{
   var %Cid = $gettok($sockname, 2, 95), %Error
 
@@ -115,7 +142,7 @@ on $*:SOCKWRITE:/^mBeamPro_\d+_ClientAuthed$/:{
 
   ;; Attempt to move more data from the scripted write buffer to the
   ;; internal socket's send buffer
-  elseif {
+  else {
     _mBeamPro.IRCSend $sockname
   }
 
@@ -200,8 +227,22 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
 
       ;; /JOIN
       elseif ($1 == JOIN) {
+        var %Index = 2, %Chan
 
+        ;; loop over each channel in the list
+        while (%index <= $0) {
+          %Chan = $($+($, %Index), 2)
 
+          ;; validate the channel and make sure the user is not already on it
+          if (#?* iswm %Chan && !$WebSock(mBeamPro_ $+ %Cid $+ _Chat $+ %Chan)) {
+
+            ;; Attempt to join the channel or output error message
+            if ($_mBeamPro.JoinChat(%Cid, $mid(%Chan, 2), %AuthToken)) {
+              _mBeamPro.IRCWrite $sockname :mirc.beam.pro NOTICE %Username : $+ $v1
+            }
+          }
+          inc %index
+        }
       }
 
       ;; /PART
@@ -219,6 +260,10 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
       ;; /USERHOST
       elseif ($1 == USERHOST && $2- == %Username) {
         _mBeamPro.IRCWrite $sockname :mirc.beam.pro 302 %UserName $+(:, %Username, =+u, %UserId, @, %Username, .user.beam.pro)
+      }
+
+      ;; Commands to ignore: /MODE user
+      elseif ($1-2 == MODE %UserName) {
       }
 
       ;; Unknown command

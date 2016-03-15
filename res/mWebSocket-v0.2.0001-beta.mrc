@@ -398,7 +398,7 @@ alias WebSock {
   }
   var %Name, %Sock, %State, %Find, %Index, %Header
   if (!$0) {
-    if ($event !== signal || !$regex(NameFromSignal, $signal, /^WebSocket_[a-zA-z]+_(?!\d+$)([^?*-][^?*]*)$/i)) {
+    if ($event !== signal || !$regex(NameFromSignal, $signal, /^WebSocket_[a-zA-Z]+_(?!\d+$)([^?*-][^?*]*)$/i)) {
       return
     }
     %Name = $regml(NameFromSignal, 1)
@@ -1027,5 +1027,5 @@ on $*:SOCKWRITE:/^_WebSocket_(?!\d+$)[^-?*][^?*]*$/:{
   }
 }
 alias mWebSockVer {
-  return 02000.0000
+  return 02000.0001
 }
