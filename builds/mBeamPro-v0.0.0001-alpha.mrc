@@ -190,7 +190,7 @@ alias mBeamProDebug {
     halt
   }
 }
-#_mBeamPro_Debug on
+#_mBeamPro_Debug off
 alias -l _mBeamPro.Debug {
   if (!$window(@mBeamProDebug)) {
     mBeamProDebug off
@@ -531,9 +531,9 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientLogon\d+$/:{
       }
       elseif ($1 == PASS) {
         if (%GotPass) {
-           _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent an auth token twice; closing connection
-           sockwrite -n $sockname :m.beam.pro NOTICE * :You may not attempt to authorize multiple times
-           sockmark $sockname CLOSING
+          _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent an auth token twice; closing connection
+          sockwrite -n $sockname :m.beam.pro NOTICE * :You may not attempt to authorize multiple times
+          sockmark $sockname CLOSING
         }
         elseif ($2- !== %AuthToken) {
           _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent an invalid auth token; closing connection
@@ -551,9 +551,9 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientLogon\d+$/:{
       }
       elseif ($1 == NICK) {
         if (%GotNick) {
-           _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent a username twice; closing connection.
-           sockwrite -n $sockname :m.beam.pro NOTICE * :You may not attempt to authorize multiple times
-           sockmark $sockname CLOSING
+          _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent a username twice; closing connection.
+          sockwrite -n $sockname :m.beam.pro NOTICE * :You may not attempt to authorize multiple times
+          sockmark $sockname CLOSING
         }
         elseif ($2- !== %Username) {
           _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent an invalid username; closing connection.
@@ -571,9 +571,9 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientLogon\d+$/:{
       }
       elseif ($1 == USER) {
         if (%GotUser) {
-           _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent a userid twice; closing connection.
-           sockwrite -n $sockname :m.beam.pro NOTICE * :You may not attempt to authorize multiple times
-           sockmark $sockname CLOSING
+          _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent a userid twice; closing connection.
+          sockwrite -n $sockname :m.beam.pro NOTICE * :You may not attempt to authorize multiple times
+          sockmark $sockname CLOSING
         }
         elseif (!$regex(userid, $2-, /^\S+ . . :(\d+)$/i) || $regml(userid, 1) !== %UserId) {
           _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent an invalid userid; closing connection.
