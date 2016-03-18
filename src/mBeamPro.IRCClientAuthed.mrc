@@ -179,6 +179,8 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
     %Error = SOCK_ERROR SockClose Error: $sock($sockname).wsmsg
   }
   else {
+    scid %Cid
+
     %AuthToken = $hget($sockname, BeamPro_AuthToken)
     %Username = $hget($sockname, BeamPro_Username)
     %UserId = $hget($sockname, BeamPro_UserId)
@@ -247,8 +249,6 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
 
       ;; /PART
       elseif ($1 == PART) {
-        ;; switch to the connection id
-        scid %Cid
         ;; check to make sure the 2nd parameter is a channel
         if (#?* iswm $2) {
 
@@ -267,10 +267,84 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
 
       ;; /PRIVMSG
       elseif ($1 == PRIVMSG) {
+        var %_Target, %_Msg, %_Ws
+
+        ;; Validate command format, then get target and message
+        if ($regex($1-, /^PRIGMSG (#\S+) :(.*)/i)) {
+          %_Target = $regml(1)
+          %_Msg = $regml(2)
+
+          ;; Check to make sure a websocket to the specified channel is
+          ;; open
+          if ($WebSock(mBeamPro_ $+ %Cid $+ _Chat $+ $2)) {
+            %_Ws = $v1
+            
+            
+            if ($hget(_WebSocket_mBeamPro_ $+ %Cid $+ _Chat $+ $2, BeamPro_Joined)) {
+              ;; If an action send the message prefixed with '/me' through
+              ;; the websock
+              if ($regex(%_Msg, /^\x01ACTION (.+)\x01/i)) {
+                noop $_mBeamPro.WebSockSend(msg, /me $regml(1))
+              }
+
+              ;; If not an action send the message, as-in, trhough the
+              ;; websocket
+              else {
+                noop $_mBeamPro.WebSockSend(msg, %_Msg)
+              }
+            }
+            else {
+              _mBeamPro.IRCWrite $sockname :mirc.beam.pro NOTICE %UserName :Please wait for the connection to $2's chat to establish
+            }
+          }
+
+          ;; Handle not being on the specified stream's channel
+          else {
+            _mBeamPro.IRCWrite $sockname :mirc.beam.pro NOTICE %UserName :You are not on $2
+          }
+        }
+
+        ;; Handle invalid parameters
+        else {
+          _mBeamPro.IRCWrite $sockname :mirc.beam.pro NOTICE %UserName :Invalid message parameters; if you were trying to whisper use: /notice #stream user message
+        }
       }
 
-      ;; /TOPIC
-      elseif ($1 == TOPIC) {
+      ;; /NOTICE
+      elseif ($1 == NOTICE) {
+        var %_Target, %_User, %_Msg, %_Ws
+        if ($regex($1-, /^NOTICE (#\S+) :(\S+) (.+)$/i)) {
+          %_Target = $regml(1)
+          %_User = $regml(2)
+          %_Msg = $regml(3)
+          if ($WebSock(mBeamPro_ $+ %Cid $+ _Chat $+ %_Target)) {
+            if ($hget(_mbeamPro_ $+ %Cid $+ _Chat $+ %_Target, BeamPro_Joined)) {
+              noop $_mBeamPro.WebSockSend($v1, whisper, %_User, %_Msg)._mBeamPro.OnWhisperReply
+            }
+            else {
+              _mBeamPro.IRCWrite $sockname :mirc.beam.pro NOTICE %UserName :Please wait for the connection to $2's chat to establish
+            }
+          }
+          else {
+            _mBeamPro.IRCWrite $sockname :mirc.beam.pro NOTICE %USerName :You must be on the specified stream chat to send whispers to it's users.
+          }
+        }
+        else {
+          _mBeamPro.IRCWrite $sockname :mirc.beam.pro NOTICE %UserName :Invalid whisper parameters: /notice #stream user message.
+        }
+      }
+
+      ;; /MODE
+      elseif ($1 == MODE) {
+        if (#?* iswm $2 && $WebScok(mBeamPro_ $+ %Cid $+ _Chat $+ $2)) {
+          _mBeamPro.IRCWrite $sockname :mirc.beam.pro MODE $2 +nt
+        }
+        elseif ($2 == %Username) {
+          ;; user mode
+        }
+        else {
+
+        }
       }
 
       ;; /USERHOST
@@ -278,15 +352,13 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
         _mBeamPro.IRCWrite $sockname :mirc.beam.pro 302 %UserName $+(:, %Username, =+u, %UserId, @, %Username, .user.beam.pro)
       }
 
-      ;; /MODE #[channel]
-      elseif ($regex($1-, /^MODE #(\S+)$/i)) {
-        if ($WebSock(mBeamPro_ $+ %Cid $+ _Chat# $+ $regml(1))) {
-          _mBeamPro.IRCWrite $sockname :mirc.beam.pro MODE # $+ $regml(1) +nt
-        }
+      ;; /TOPIC
+      elseif ($1 == TOPIC) {
       }
 
-      ;; Commands to ignore: /MODE user
-      elseif ($1-2 == MODE %UserName || $1 == PROTOCTL) {
+      ;; Ignore:
+      ;;   /PROTOCTL
+      elseif ($1 == PROTOCTL) {
       }
 
       ;; Unknown command
