@@ -5,16 +5,18 @@
         <link rel="stylesheet" type="text/css" href="./main.css">
     </head>
     <body>
-        <div class="container">
-            <h1>mBeamPro - Authorize</h1>
-            Clicking the button below will generate a new mBeamPro authorization token. All other mBeamPro authorization tokens for you will be revoked.<br>
-            <form action="https://beam.pro/oauth/authorize">
-                <input type="hidden" name="response_type" value="token"/>
-                <input type="hidden" name="client_id" value="7b21a74f61dc2f750ee07ca7f30c2d3530faf8700fb5f3fc" />
-                <input type="hidden" name="redirect_uri" value="http://sreject.github.io/mBeamPro/auth.htm" />
-                <input type="hidden" name="scope" value="chat:chat user:details:self" />
-                <input type="submit" value="Generate Authorization Token" />
-            </form>
+        <div class="wrapper">
+            <div class="head">mBeamPro - Authorize</div>
+            <div class="content">
+                The button below generates a full access token to be used with SReject's mBeamPro script. This site uses an implicit grant flow methodology meaning this server will be unaware of the token
+                <form action="https://beam.pro/oauth/authorize">
+                    <input type="hidden" name="response_type" value="token"/>
+                    <input type="hidden" name="client_id" value="7b21a74f61dc2f750ee07ca7f30c2d3530faf8700fb5f3fc" />
+                    <input type="hidden" name="redirect_uri" value="http://sreject.github.io/mBeamPro/auth.htm" />
+                    <input type="hidden" name="scope" value="chat:chat user:details:self" />
+                    <input type="submit" value="Generate Authorization Token" />
+                </form>
+            </div>
         </div>
     </body>
 </html>
