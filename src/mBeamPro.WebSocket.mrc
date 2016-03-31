@@ -424,13 +424,7 @@ on $*:SIGNAL:/^WebSocket_DATA_mBeamPro_\d+_Chat#\S+$/:{
   }
 
   ;; Validate Frame
-  elseif ($WebSockFrame(TypeText) !== TEXT) {
-    %Warn = Non-text frame recieved: $v1
-  }
-
-  ;; Begin processing the frame be retreiving its data and parsing it as
-  ;; JSON
-  else {
+  elseif ($WebSockFrame(TypeText) == TEXT) {
     scid %Cid
 
     bunset &_mBeamPro_DataFrameJSON
@@ -494,9 +488,9 @@ on $*:SIGNAL:/^WebSocket_DATA_mBeamPro_\d+_Chat#\S+$/:{
       ;; USER LEAVE
       ;;   Build userhost string and output part message to IRC Client
       elseif (%Event == UserLeave) {
-        %_UserName = $JSON(%JSON, username)
+        %_UserName = $JSON(%JSON, data, username)
         if ($len(%_UserName) && %_UserName !== %UserName) {
-          %_UserHost = $+(%_UserName, !u, $JSON(%JSON, id), @, %_UserName, .user.beam.pro)
+          %_UserHost = $+(%_UserName, !u, $JSON(%JSON, data, id), @, %_UserName, .user.beam.pro)
           _mBeamPro.IRCWrite %Sock : $+ %_UserHost PART %Chan :leaving
         }
       }

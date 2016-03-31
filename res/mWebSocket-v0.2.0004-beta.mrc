@@ -70,7 +70,7 @@ alias WebSockOpen {
 }
 alias WebSockHeader {
   var %Error, %Name, %Sock
-  if (!$isid || $event !== signal || !$regex($signal, /^WebSocket_INIT_(?!\d+$)([^?*-][^?*]*)$/i)) {
+  if ($isid || $event !== signal || !$regex($signal, /^WebSocket_INIT_(?!\d+$)([^?*-][^?*]*)$/i)) {
     return
   }
   else {
@@ -89,7 +89,7 @@ alias WebSockHeader {
       }
       else {
         %Index = $calc($hfind(%Sock, ^HTTPREQ_HEADER\d+_, 0, r) + 1)
-        hadd -m %Sock $+(HTTPREQ_HEADER, %Index, _, %Header) %Value
+        hadd -m %Sock $+(HTTPREQ_HEADER, %Index, _, %Header) $2-
       }
     }
   }
@@ -750,7 +750,7 @@ on $*:SOCKOPEN:/^_WebSocket_(?!\d+$)[^-?*][^?*]*$/:{
     .signal -n WebSocket_INIT_ $+ %Name
     %Index = 1
     while ($hfind($sockname, /^HTTPREQ_HEADER\d+_([^\s]+)$/, %Index, r)) {
-      _WebSocket.BAdd &_WebSocket_HttpReq $regml(1) $hget($sockname, $v1)
+      _WebSocket.BAdd &_WebSocket_HttpReq $regml(1) $+ : $hget($sockname, $v1)
       inc %Index
     }
     _WebSocket.BAdd &_WebSocket_HttpReq
@@ -1024,5 +1024,5 @@ on $*:SOCKWRITE:/^_WebSocket_(?!\d+$)[^-?*][^?*]*$/:{
   }
 }
 alias mWebSockVer {
-  return 02000.0003
+  return 02000.0004
 }
