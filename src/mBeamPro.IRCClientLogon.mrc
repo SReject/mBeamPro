@@ -102,9 +102,9 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientLogon\d+$/:{
         ;; If a PASS command is received more than once, this connection
         ;; is most likely not a native mIRC connection so close it
         if (%GotPass) {
-           _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent an auth token twice; closing connection
-           sockwrite -n $sockname :m.beam.pro NOTICE * :You may not attempt to authorize multiple times
-           sockmark $sockname CLOSING
+          _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent an auth token twice; closing connection
+          sockwrite -n $sockname :m.beam.pro NOTICE * :You may not attempt to authorize multiple times
+          sockmark $sockname CLOSING
         }
 
         ;; If the specified pass does not match the stored auth token
@@ -135,9 +135,9 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientLogon\d+$/:{
         ;; If a NICK command is received more than once, this connection
         ;; is most likely not a native mIRC connection so close it
         if (%GotNick) {
-           _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent a username twice; closing connection.
-           sockwrite -n $sockname :m.beam.pro NOTICE * :You may not attempt to authorize multiple times
-           sockmark $sockname CLOSING
+          _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent a username twice; closing connection.
+          sockwrite -n $sockname :m.beam.pro NOTICE * :You may not attempt to authorize multiple times
+          sockmark $sockname CLOSING
         }
 
         ;; If the specified username does not match the stored username
@@ -168,9 +168,9 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientLogon\d+$/:{
         ;; If a USER command is received more than once, this connection
         ;; is most likely not a native mIRC connection so close it
         if (%GotUser) {
-           _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent a userid twice; closing connection.
-           sockwrite -n $sockname :m.beam.pro NOTICE * :You may not attempt to authorize multiple times
-           sockmark $sockname CLOSING
+          _mBeamPro.Debug -w IRC CLIENT( $+ %Cid $+ )~Client sent a userid twice; closing connection.
+          sockwrite -n $sockname :m.beam.pro NOTICE * :You may not attempt to authorize multiple times
+          sockmark $sockname CLOSING
         }
 
         ;; If the specified userid does not match the stored userid close
