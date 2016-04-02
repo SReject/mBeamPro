@@ -55,7 +55,7 @@ alias mBeamProDebug {
 ;; If this group is on the contained debug alias will be used to handle
 ;; debug messages. Otherwise the debug alias outside of the group (below)
 ;; will be used; which does nothing.
-#_mBeamPro_Debug on
+#_mBeamPro_Debug off
 ;; /_mBeamPro.Debug -e|w|i[2]|s prefix~msg
 ;;   Outputs a debug message to the debug window
 ;;
