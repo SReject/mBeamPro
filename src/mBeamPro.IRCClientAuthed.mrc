@@ -270,7 +270,7 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
         var %_Target, %_Msg, %_Ws
 
         ;; Validate command format, then get target and message
-        if ($regex($1-, /^PRIGMSG (#\S+) :(.*)/i)) {
+        if ($regex($1-, /^PRIVMSG (#\S+) :(.*)/i)) {
           %_Target = $regml(1)
           %_Msg = $regml(2)
 
@@ -284,13 +284,13 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
               ;; If an action send the message prefixed with '/me' through
               ;; the websock
               if ($regex(%_Msg, /^\x01ACTION (.+)\x01/i)) {
-                noop $_mBeamPro.WebSockSend(msg, /me $regml(1))
+                noop $_mBeamPro.WebSockSend(%_Ws, msg, /me $regml(1))
               }
 
               ;; If not an action send the message, as-in, trhough the
               ;; websocket
               else {
-                noop $_mBeamPro.WebSockSend(msg, %_Msg)
+                noop $_mBeamPro.WebSockSend(%_Ws, msg, %_Msg)
               }
             }
             else {
@@ -318,8 +318,9 @@ on $*:SOCKREAD:/^mBeamPro_\d+_ClientAuthed$/:{
           %_User = $regml(2)
           %_Msg = $regml(3)
           if ($WebSock(mBeamPro_ $+ %Cid $+ _Chat $+ %_Target)) {
+            %_Ws = $v1
             if ($hget(_mbeamPro_ $+ %Cid $+ _Chat $+ %_Target, BeamPro_Joined)) {
-              noop $_mBeamPro.WebSockSend($v1, whisper, %_User, %_Msg)._mBeamPro.OnWhisperReply
+              noop $_mBeamPro.WebSockSend(%_Ws, whisper, %_User, %_Msg)._mBeamPro.OnWhisperReply
             }
             else {
               _mBeamPro.IRCWrite $sockname :mirc.beam.pro NOTICE %UserName :Please wait for the connection to $2's chat to establish
