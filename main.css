@@ -40,4 +40,5 @@ div.token {
   border-radius: 5px;
   border: 1px solid #ccc;
   font-family: "Courier New", Courier, monospace;
+  word-wrap: break-word;
 }
