@@ -14,7 +14,7 @@
             //<![CDATA[
             (function(){
                 var title = "Error", msg = "Unable to locate the authorization token within the URL";
-                match = /(?:^|#|&|\?)access_token=([^&\?#]+)(?:[?&]|$)/.exec(window.location.hash);
+                match = /[#&\?]access_token=([^&\?#]+)(?:[\?#&]|$)/.exec(window.location.href);
                 if (match) {
                     title = "Authorized";
                     msg   = 'Your newly generated OAuth token is:<div class="token">' + match[1] + '</div>';
