@@ -1,4 +1,4 @@
 mBeamPro
 ========
 
-mIRC implementation for beam.pro
+mIRC implementation for beam.pro's chat
